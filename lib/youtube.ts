@@ -154,13 +154,16 @@ export async function fetchTranscript(
   }
 
   let tracks = getCaptionTracks(player);
+  console.log(`[transcript:${videoId}] InnerTube ANDROID returned ${tracks.length} tracks`);
 
   // Fallback to web scraping if ANDROID client returns no tracks
   // (YouTube may block InnerTube ANDROID API from cloud provider IPs)
   if (tracks.length === 0) {
+    console.log(`[transcript:${videoId}] Falling back to web scraping...`);
     const webPlayer = await fetchWebPlayerResponse(videoId);
     tracks =
       webPlayer?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    console.log(`[transcript:${videoId}] Web scraping returned ${tracks.length} tracks`);
   }
 
   if (tracks.length === 0) {
@@ -209,6 +212,7 @@ async function fetchWebPlayerResponse(videoId: string) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
   // Try direct fetch first
+  console.log(`[webPlayer:${videoId}] Trying direct web scrape...`);
   const res = await fetch(url, {
     headers: {
       "User-Agent": WEB_USER_AGENT,
@@ -222,25 +226,32 @@ async function fetchWebPlayerResponse(videoId: string) {
       const player = parsePlayerResponseFromHtml(html);
       const tracks =
         player?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+      console.log(`[webPlayer:${videoId}] Direct scrape found ${tracks.length} tracks`);
       if (tracks.length > 0) return player;
-    } catch {
-      // Fall through to ScraperAPI
+    } catch (e) {
+      console.log(`[webPlayer:${videoId}] Direct scrape parse failed: ${e instanceof Error ? e.message : e}`);
     }
+  } else {
+    console.log(`[webPlayer:${videoId}] Direct scrape HTTP ${res.status}`);
   }
 
   // Fallback: route through ScraperAPI for residential IP
   const scraperApiKey = process.env.SCRAPER_API_KEY;
   if (!scraperApiKey) {
+    console.error(`[webPlayer:${videoId}] SCRAPER_API_KEY not configured`);
     throw new Error("No captions found and SCRAPER_API_KEY is not configured");
   }
 
+  console.log(`[webPlayer:${videoId}] Trying ScraperAPI fallback...`);
   const proxyUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}`;
   const proxyRes = await fetch(proxyUrl);
   if (!proxyRes.ok) {
+    console.error(`[webPlayer:${videoId}] ScraperAPI failed: HTTP ${proxyRes.status}`);
     throw new Error(`ScraperAPI request failed: ${proxyRes.status}`);
   }
 
   const proxyHtml = await proxyRes.text();
+  console.log(`[webPlayer:${videoId}] ScraperAPI returned ${proxyHtml.length} chars`);
   return parsePlayerResponseFromHtml(proxyHtml);
 }
 
