@@ -154,6 +154,7 @@ export async function fetchTranscript(
   }
 
   let tracks = getCaptionTracks(player);
+  let useProxy = false;
   console.log(`[transcript:${videoId}] InnerTube ANDROID returned ${tracks.length} tracks`);
 
   // Fallback to web scraping if ANDROID client returns no tracks
@@ -163,6 +164,7 @@ export async function fetchTranscript(
     const webPlayer = await fetchWebPlayerResponse(videoId);
     tracks =
       webPlayer?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+    useProxy = tracks.length > 0;
     console.log(`[transcript:${videoId}] Web scraping returned ${tracks.length} tracks`);
   }
 
@@ -174,7 +176,14 @@ export async function fetchTranscript(
   const track =
     tracks.find((t) => t.languageCode === targetLang) || tracks[0];
 
-  const res = await fetch(track.baseUrl);
+  // If tracks came from ScraperAPI fallback, fetch captions through proxy too
+  let captionUrl = track.baseUrl;
+  if (useProxy && process.env.SCRAPER_API_KEY) {
+    captionUrl = `https://api.scraperapi.com?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(track.baseUrl)}`;
+    console.log(`[transcript:${videoId}] Fetching captions via ScraperAPI proxy`);
+  }
+
+  const res = await fetch(captionUrl);
   if (!res.ok) {
     throw new Error(`Failed to fetch captions: ${res.status}`);
   }
