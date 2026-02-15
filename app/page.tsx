@@ -14,7 +14,7 @@ export default async function Home() {
   const summaries = await getUserSummaries(session.user.email!);
 
   return (
-    <main style={{ maxWidth: 800, margin: "0 auto" }}>
+    <main style={{ maxWidth: 800, margin: "0 auto", padding: "0" }}>
       <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
         <h1 style={{ margin: 0, fontSize: "1.5rem" }}>Noesis</h1>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>

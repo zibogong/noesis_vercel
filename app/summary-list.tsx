@@ -21,6 +21,14 @@ export default function SummaryList({
 
   return (
     <div style={{ marginTop: "2rem" }}>
+      <style>{`
+        .sl-card-header { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; }
+        .sl-thumb { width: 100%; max-width: 200px; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+        @media (min-width: 480px) {
+          .sl-card-header { flex-direction: row; gap: 0.75rem; }
+          .sl-thumb { width: 120px; max-width: 120px; height: 68px; }
+        }
+      `}</style>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>
         Past Summaries
       </h2>
@@ -40,10 +48,8 @@ export default function SummaryList({
               }}
             >
               <div
+                className="sl-card-header"
                 style={{
-                  display: "flex",
-                  gap: "0.75rem",
-                  padding: "0.75rem",
                   cursor: s.summary ? "pointer" : "default",
                 }}
                 onClick={() =>
@@ -55,32 +61,27 @@ export default function SummaryList({
                   <img
                     src={s.video_thumbnail_url}
                     alt={s.video_id}
-                    style={{
-                      width: 120,
-                      height: 68,
-                      objectFit: "cover",
-                      borderRadius: 4,
-                      flexShrink: 0,
-                    }}
+                    className="sl-thumb"
                   />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       display: "flex",
+                      flexWrap: "wrap",
                       alignItems: "center",
-                      gap: "0.5rem",
+                      gap: "0.4rem",
                       marginBottom: "0.25rem",
                     }}
                   >
                     <span
-                      style={{ fontWeight: 600, fontSize: "0.95rem" }}
+                      style={{ fontWeight: 600, fontSize: "0.9rem" }}
                     >
                       {s.video_title || s.video_id}
                     </span>
                     <span
                       style={{
-                        fontSize: "0.75rem",
+                        fontSize: "0.7rem",
                         padding: "0.1rem 0.4rem",
                         borderRadius: 3,
                         background: colors.bg,
@@ -92,7 +93,7 @@ export default function SummaryList({
                     </span>
                     <span
                       style={{
-                        fontSize: "0.75rem",
+                        fontSize: "0.7rem",
                         color: "#999",
                         textTransform: "uppercase",
                       }}
@@ -106,6 +107,9 @@ export default function SummaryList({
                         fontSize: "0.75rem",
                         color: "#888",
                         marginBottom: "0.25rem",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {s.video_id}
@@ -149,12 +153,11 @@ export default function SummaryList({
               {isExpanded && s.summary && (
                 <div
                   style={{
-                    padding: "0 0.75rem 0.75rem",
+                    padding: "0.75rem",
                     fontSize: "0.9rem",
                     lineHeight: 1.7,
                     whiteSpace: "pre-wrap",
                     borderTop: "1px solid #eee",
-                    paddingTop: "0.75rem",
                   }}
                 >
                   {s.summary}
@@ -163,7 +166,7 @@ export default function SummaryList({
                       <audio
                         controls
                         src={s.audio_url}
-                        style={{ width: "100%" }}
+                        style={{ width: "100%", maxWidth: "100%" }}
                       />
                     </div>
                   ) : s.status === "completed" && (

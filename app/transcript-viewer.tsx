@@ -19,18 +19,19 @@ const LANGUAGES = [
 ];
 
 const LENGTHS = [
-  { value: 100, label: "Short (~100 words)" },
-  { value: 300, label: "Medium (~300 words)" },
-  { value: 500, label: "Long (~500 words)" },
-  { value: 800, label: "Detailed (~800 words)" },
+  { value: 100, label: "Short (~100)" },
+  { value: 300, label: "Medium (~300)" },
+  { value: 500, label: "Long (~500)" },
+  { value: 800, label: "Detailed (~800)" },
 ];
 
-const selectStyle = {
-  padding: "0.6rem 0.8rem",
+const selectStyle: React.CSSProperties = {
+  padding: "0.5rem 0.6rem",
   border: "1px solid #ccc",
   borderRadius: 4,
-  fontSize: "0.9rem",
+  fontSize: "0.85rem",
   background: "white",
+  minWidth: 0,
 };
 
 type Status = "idle" | "pending" | "processing" | "completed" | "failed";
@@ -85,11 +86,9 @@ export default function TranscriptViewer() {
               stopPolling();
               router.refresh();
             } else {
-              // Summary done but audio still generating — keep polling
               setWaitingForAudio(true);
               audioPollCountRef.current += 1;
               if (audioPollCountRef.current >= MAX_AUDIO_POLLS) {
-                // Timeout — stop waiting for audio
                 setWaitingForAudio(false);
                 stopPolling();
                 router.refresh();
@@ -120,7 +119,6 @@ export default function TranscriptViewer() {
     setWaitingForAudio(false);
     setVideoTitle(null);
 
-    // Extract video ID for thumbnail
     const vid = extractVideoId(url.trim());
     setVideoId(vid);
 
@@ -166,40 +164,46 @@ export default function TranscriptViewer() {
 
   return (
     <div>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tv-form-row { display: flex; flex-direction: column; gap: 0.5rem; }
+        .tv-input { flex: 1; padding: 0.6rem 0.8rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; min-width: 0; }
+        .tv-btn { padding: 0.6rem 1.2rem; color: white; border: none; border-radius: 4px; font-size: 1rem; white-space: nowrap; width: 100%; }
+        .tv-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .tv-options label { display: flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; color: #555; }
+        .tv-thumb-row { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; }
+        .tv-thumb-img { border-radius: 6px; width: 100%; max-width: 320px; aspect-ratio: 16/9; object-fit: cover; }
+        @media (min-width: 480px) {
+          .tv-form-row { flex-direction: row; }
+          .tv-btn { width: auto; }
+          .tv-thumb-row { flex-direction: row; align-items: center; padding: 1rem 1.5rem; }
+          .tv-thumb-img { width: 160px; max-width: 160px; flex-shrink: 0; }
+        }
+      `}</style>
+
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="tv-form-row">
           <input
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Paste YouTube URL or video ID..."
-            style={{
-              flex: 1,
-              padding: "0.6rem 0.8rem",
-              border: "1px solid #ccc",
-              borderRadius: 4,
-              fontSize: "1rem",
-            }}
+            className="tv-input"
           />
           <button
             type="submit"
             disabled={loading}
+            className="tv-btn"
             style={{
-              padding: "0.6rem 1.2rem",
               background: loading ? "#999" : "#0070f3",
-              color: "white",
-              border: "none",
-              borderRadius: 4,
               cursor: loading ? "not-allowed" : "pointer",
-              fontSize: "1rem",
-              whiteSpace: "nowrap",
             }}
           >
             {statusLabel}
           </button>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.9rem", color: "#555" }}>
+        <div className="tv-options">
+          <label>
             Language
             <select value={language} onChange={(e) => setLanguage(e.target.value)} style={selectStyle}>
               {LANGUAGES.map((l) => (
@@ -207,7 +211,7 @@ export default function TranscriptViewer() {
               ))}
             </select>
           </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.9rem", color: "#555" }}>
+          <label>
             Length
             <select value={length} onChange={(e) => setLength(Number(e.target.value))} style={selectStyle}>
               {LENGTHS.map((l) => (
@@ -219,7 +223,7 @@ export default function TranscriptViewer() {
       </form>
 
       {error && (
-        <div style={{ padding: "1rem", background: "#fee", border: "1px solid #fcc", borderRadius: 4, color: "#c00", marginBottom: "1rem" }}>
+        <div style={{ padding: "0.75rem 1rem", background: "#fee", border: "1px solid #fcc", borderRadius: 4, color: "#c00", marginBottom: "1rem", fontSize: "0.9rem" }}>
           {error}
         </div>
       )}
@@ -234,20 +238,20 @@ export default function TranscriptViewer() {
           }}
         >
           {showThumbnail && (
-            <div style={{ display: "flex", gap: "1rem", padding: "1rem 1.5rem", alignItems: "center", borderBottom: summary ? "1px solid #eee" : "none" }}>
+            <div className="tv-thumb-row" style={{ borderBottom: summary ? "1px solid #eee" : "none" }}>
               <img
                 src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`}
                 alt={videoTitle || "Video thumbnail"}
-                style={{ borderRadius: 6, width: 160, height: 90, objectFit: "cover", flexShrink: 0 }}
+                className="tv-thumb-img"
               />
               <div style={{ minWidth: 0 }}>
                 {videoTitle && (
-                  <div style={{ fontSize: "1rem", fontWeight: 600, lineHeight: 1.4 }}>
+                  <div style={{ fontSize: "0.95rem", fontWeight: 600, lineHeight: 1.4 }}>
                     {videoTitle}
                   </div>
                 )}
                 {!summary && (
-                  <div style={{ marginTop: "0.4rem", fontSize: "0.85rem", color: "#888" }}>
+                  <div style={{ marginTop: "0.3rem", fontSize: "0.85rem", color: "#888" }}>
                     {status === "pending" ? "Waiting to process..." : status === "processing" ? "Generating summary..." : ""}
                   </div>
                 )}
@@ -256,14 +260,14 @@ export default function TranscriptViewer() {
           )}
 
           {summary && (
-            <div style={{ padding: "1.5rem", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+            <div style={{ padding: "1rem 1rem 1.25rem", lineHeight: 1.7, whiteSpace: "pre-wrap", fontSize: "0.95rem" }}>
               {summary}
-              <div style={{ marginTop: "1rem", fontSize: "0.85rem", color: "#666" }}>
+              <div style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#666" }}>
                 {wordCount} words
               </div>
 
               {waitingForAudio && (
-                <div style={{ marginTop: "1rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.85rem", color: "#888" }}>
+                <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8rem", color: "#888" }}>
                   <span
                     style={{
                       display: "inline-block",
@@ -276,13 +280,12 @@ export default function TranscriptViewer() {
                     }}
                   />
                   Generating audio...
-                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
               )}
 
               {audioUrl && (
-                <div style={{ marginTop: "1rem" }}>
-                  <audio controls src={audioUrl} style={{ width: "100%" }}>
+                <div style={{ marginTop: "0.75rem" }}>
+                  <audio controls src={audioUrl} style={{ width: "100%", maxWidth: "100%" }}>
                     Your browser does not support the audio element.
                   </audio>
                 </div>
