@@ -195,8 +195,20 @@ export function transcriptToText(
   return transcript.map((s) => s.text).join(separator);
 }
 
+function parsePlayerResponseFromHtml(html: string) {
+  const playerMatch = html.match(
+    /ytInitialPlayerResponse\s*=\s*({.+?})\s*;\s*(?:var\s|<\/script>)/
+  );
+  if (!playerMatch) {
+    throw new Error("Could not find player response data");
+  }
+  return JSON.parse(playerMatch[1]);
+}
+
 async function fetchWebPlayerResponse(videoId: string) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+  // Try direct fetch first
   const res = await fetch(url, {
     headers: {
       "User-Agent": WEB_USER_AGENT,
@@ -204,19 +216,32 @@ async function fetchWebPlayerResponse(videoId: string) {
     },
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch YouTube page: ${res.status}`);
+  if (res.ok) {
+    const html = await res.text();
+    try {
+      const player = parsePlayerResponseFromHtml(html);
+      const tracks =
+        player?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+      if (tracks.length > 0) return player;
+    } catch {
+      // Fall through to ScraperAPI
+    }
   }
 
-  const html = await res.text();
-  const playerMatch = html.match(
-    /ytInitialPlayerResponse\s*=\s*({.+?})\s*;\s*(?:var\s|<\/script>)/
-  );
-  if (!playerMatch) {
-    throw new Error("Could not find player response data");
+  // Fallback: route through ScraperAPI for residential IP
+  const scraperApiKey = process.env.SCRAPER_API_KEY;
+  if (!scraperApiKey) {
+    throw new Error("No captions found and SCRAPER_API_KEY is not configured");
   }
 
-  return JSON.parse(playerMatch[1]);
+  const proxyUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}`;
+  const proxyRes = await fetch(proxyUrl);
+  if (!proxyRes.ok) {
+    throw new Error(`ScraperAPI request failed: ${proxyRes.status}`);
+  }
+
+  const proxyHtml = await proxyRes.text();
+  return parsePlayerResponseFromHtml(proxyHtml);
 }
 
 export async function listAvailableLanguages(
