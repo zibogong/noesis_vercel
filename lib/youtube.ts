@@ -157,15 +157,18 @@ export async function fetchTranscript(
   let useProxy = false;
   console.log(`[transcript:${videoId}] InnerTube ANDROID returned ${tracks.length} tracks`);
 
-  // Fallback to web scraping if ANDROID client returns no tracks
-  // (YouTube may block InnerTube ANDROID API from cloud provider IPs)
+  // Fallback: route InnerTube ANDROID API through ScraperAPI (residential IP)
   if (tracks.length === 0) {
-    console.log(`[transcript:${videoId}] Falling back to web scraping...`);
-    const webPlayer = await fetchWebPlayerResponse(videoId);
-    tracks =
-      webPlayer?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
-    useProxy = tracks.length > 0;
-    console.log(`[transcript:${videoId}] Web scraping returned ${tracks.length} tracks`);
+    const scraperApiKey = process.env.SCRAPER_API_KEY;
+    if (!scraperApiKey) {
+      throw new Error(`No transcript found for video: ${videoId}`);
+    }
+
+    console.log(`[transcript:${videoId}] Retrying InnerTube via ScraperAPI...`);
+    const proxyPlayer = await fetchInnertubePlayerViaProxy(videoId, scraperApiKey);
+    tracks = getCaptionTracks(proxyPlayer);
+    useProxy = true;
+    console.log(`[transcript:${videoId}] ScraperAPI InnerTube returned ${tracks.length} tracks`);
   }
 
   if (tracks.length === 0) {
@@ -176,13 +179,14 @@ export async function fetchTranscript(
   const track =
     tracks.find((t) => t.languageCode === targetLang) || tracks[0];
 
-  // If tracks came from ScraperAPI fallback, fetch captions through proxy too
-  let captionUrl = track.baseUrl;
-  if (useProxy && process.env.SCRAPER_API_KEY) {
-    captionUrl = `https://api.scraperapi.com?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(track.baseUrl)}`;
-    console.log(`[transcript:${videoId}] Fetching captions via ScraperAPI proxy`);
-  }
+  // Fetch caption XML — route through ScraperAPI if that's how we got the tracks
+  const scraperApiKey = process.env.SCRAPER_API_KEY;
+  const captionUrl =
+    useProxy && scraperApiKey
+      ? `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(track.baseUrl)}`
+      : track.baseUrl;
 
+  console.log(`[transcript:${videoId}] Fetching captions${useProxy ? " via ScraperAPI" : " directly"}...`);
   const res = await fetch(captionUrl);
   if (!res.ok) {
     throw new Error(`Failed to fetch captions: ${res.status}`);
@@ -193,11 +197,43 @@ export async function fetchTranscript(
     throw new Error(`Empty caption response for video: ${videoId}`);
   }
 
+  console.log(`[transcript:${videoId}] Got ${xml.length} chars of caption XML`);
+
   // Detect format: format 3 uses <p> tags, legacy uses <text> tags
   if (xml.includes('format="3"') || xml.includes("<p t=")) {
     return parseFormat3Xml(xml);
   }
   return parseLegacyXml(xml);
+}
+
+async function fetchInnertubePlayerViaProxy(
+  videoId: string,
+  scraperApiKey: string
+): Promise<InnertubePlayerResponse> {
+  const innertubeUrl = `https://www.youtube.com/youtubei/v1/player?key=${INNERTUBE_API_KEY}&prettyPrint=false`;
+  const proxyUrl = `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(innertubeUrl)}`;
+
+  const res = await fetch(proxyUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      context: {
+        client: {
+          clientName: "ANDROID",
+          clientVersion: INNERTUBE_CLIENT_VERSION,
+          androidSdkVersion: 30,
+          hl: "en",
+        },
+      },
+      videoId,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`ScraperAPI InnerTube request failed: ${res.status}`);
+  }
+
+  return res.json();
 }
 
 export function transcriptToText(
