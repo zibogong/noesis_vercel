@@ -153,7 +153,16 @@ export async function fetchTranscript(
     );
   }
 
-  const tracks = getCaptionTracks(player);
+  let tracks = getCaptionTracks(player);
+
+  // Fallback to web scraping if ANDROID client returns no tracks
+  // (YouTube may block InnerTube ANDROID API from cloud provider IPs)
+  if (tracks.length === 0) {
+    const webPlayer = await fetchWebPlayerResponse(videoId);
+    tracks =
+      webPlayer?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
+  }
+
   if (tracks.length === 0) {
     throw new Error(`No transcript found for video: ${videoId}`);
   }
