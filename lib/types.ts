@@ -50,6 +50,7 @@ export interface VideoSummaryRecord {
   id: string;
   user_email: string;
   video_id: string;
+  video_title: string | null;
   video_thumbnail_url: string | null;
   summary: string | null;
   status: SummaryStatus;
