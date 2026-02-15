@@ -25,16 +25,19 @@ export async function generateSummary(
   }
 
   const prompt = `
-    Summarize the following transcript as a high-impact audio script.
+    Summarize the following transcript as a natural spoken audio script.
 
     Requirements:
-    1. The summary should be optimized for listening, not reading.
-    2. Start with a strong hook that highlights the core problem.
-    3. Extract the main mental model(s) and present them clearly.
-    4. Convert abstract ideas into concrete, actionable steps.
-    5. Include short, memorable phrases or quotes.
-    6. End with a practical reflection question for the listener.
-    7. Length: in approximately ${maxWords} words
+    1. Write in a conversational, spoken tone — as if you are talking to one person.
+    2. Do NOT use any markdown formatting: no headings, no bold, no bullet points, no numbered lists, no asterisks.
+    3. Use plain text only. Separate ideas with short paragraphs.
+    4. Start with a strong hook that highlights the core problem or insight.
+    5. Use conversational transitions like "Here is the key insight", "So what does this mean?", "Think about it this way".
+    6. Convert abstract ideas into concrete, actionable steps using natural sentences.
+    7. Keep sentences short and punchy. Use punctuation to create natural pauses.
+    8. End with a practical reflection question for the listener.
+    9. Do not include URLs, parenthetical asides, or any visual-only formatting.
+    10. Length: approximately ${maxWords} words.
 
     Transcript:
     ${transcriptText}`;
@@ -48,7 +51,7 @@ export async function generateSummary(
         {
           role: "system",
           content:
-            "You are a helpful assistant that creates concise, informative summaries of video transcripts.",
+            "You are a helpful assistant that creates concise, conversational summaries of video transcripts optimized for text-to-speech playback. Write in plain text only, no markdown.",
         },
         { role: "user", content: prompt },
       ],
@@ -73,4 +76,21 @@ export async function generateSummary(
     }
     throw { status: 500, detail: `Error generating summary: ${String(err)}` };
   }
+}
+
+export async function generateSpeech(text: string): Promise<Buffer> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  const client = new OpenAI({ apiKey });
+  const response = await client.audio.speech.create({
+    model: "tts-1",
+    voice: "alloy",
+    input: text,
+  });
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }

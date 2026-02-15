@@ -40,6 +40,9 @@ interface InnertubePlayerResponse {
       translationLanguages?: unknown[];
     };
   };
+  videoDetails?: {
+    title?: string;
+  };
   playabilityStatus?: {
     status?: string;
   };
@@ -298,6 +301,29 @@ async function fetchWebPlayerResponse(videoId: string) {
   const proxyHtml = await proxyRes.text();
   console.log(`[webPlayer:${videoId}] ScraperAPI returned ${proxyHtml.length} chars`);
   return parsePlayerResponseFromHtml(proxyHtml);
+}
+
+export async function fetchVideoTitle(videoId: string): Promise<string | null> {
+  try {
+    const player = await fetchInnertubePlayer(videoId);
+    const title = player.videoDetails?.title;
+    if (title) return title;
+
+    // Fallback: try web page <title> tag
+    const res = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: { "User-Agent": WEB_USER_AGENT, "Accept-Language": "en-US,en;q=0.9" },
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const match = html.match(/<title>(.+?)\s*-\s*YouTube<\/title>/);
+      if (match) return decodeHtmlEntities(match[1]);
+    }
+
+    return null;
+  } catch (err) {
+    console.error(`[fetchVideoTitle:${videoId}] Failed:`, err);
+    return null;
+  }
 }
 
 export async function listAvailableLanguages(

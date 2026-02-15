@@ -7,8 +7,9 @@ import {
   checkRateLimit,
   updateSummaryStatus,
 } from "@/lib/db";
-import { extractVideoId, fetchTranscript, transcriptToText } from "@/lib/youtube";
-import { generateSummary } from "@/lib/openai";
+import { extractVideoId, fetchTranscript, transcriptToText, fetchVideoTitle } from "@/lib/youtube";
+import { generateSummary, generateSpeech } from "@/lib/openai";
+import { uploadAudio } from "@/lib/storage";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -41,6 +42,13 @@ export async function POST(request: Request) {
       console.log(`[summary:${record.id}] Starting processing for video ${videoId}, lang=${language}, length=${length}`);
       await updateSummaryStatus(record.id, { status: "processing" });
 
+      // Fetch video title (non-critical)
+      const videoTitle = await fetchVideoTitle(videoId);
+      if (videoTitle) {
+        console.log(`[summary:${record.id}] Video title: ${videoTitle}`);
+        await updateSummaryStatus(record.id, { video_title: videoTitle });
+      }
+
       console.log(`[summary:${record.id}] Fetching transcript...`);
       const transcript = await fetchTranscript(videoId, language);
       console.log(`[summary:${record.id}] Transcript fetched: ${transcript.length} segments`);
@@ -58,6 +66,20 @@ export async function POST(request: Request) {
         word_count: wordCount,
       });
       console.log(`[summary:${record.id}] Completed successfully`);
+
+      // Generate TTS audio (non-critical — summary is already saved)
+      try {
+        console.log(`[summary:${record.id}] Generating TTS audio...`);
+        const audioBuffer = await generateSpeech(summary);
+        console.log(`[summary:${record.id}] TTS audio generated: ${audioBuffer.length} bytes`);
+
+        const audioUrl = await uploadAudio(audioBuffer, videoId);
+        console.log(`[summary:${record.id}] Audio uploaded: ${audioUrl}`);
+
+        await updateSummaryStatus(record.id, { audio_url: audioUrl });
+      } catch (ttsErr) {
+        console.error(`[summary:${record.id}] TTS generation failed (non-critical):`, ttsErr);
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error

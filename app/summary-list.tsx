@@ -76,7 +76,7 @@ export default function SummaryList({
                     <span
                       style={{ fontWeight: 600, fontSize: "0.95rem" }}
                     >
-                      {s.video_id}
+                      {s.video_title || s.video_id}
                     </span>
                     <span
                       style={{
@@ -100,6 +100,17 @@ export default function SummaryList({
                       {s.language}
                     </span>
                   </div>
+                  {s.video_title && (
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#888",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      {s.video_id}
+                    </div>
+                  )}
                   {s.summary && !isExpanded && (
                     <p
                       style={{
@@ -147,6 +158,26 @@ export default function SummaryList({
                   }}
                 >
                   {s.summary}
+                  {s.audio_url ? (
+                    <div style={{ marginTop: "0.75rem" }}>
+                      <audio
+                        controls
+                        src={s.audio_url}
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                  ) : s.status === "completed" && (
+                    <div
+                      style={{
+                        marginTop: "0.5rem",
+                        fontSize: "0.8rem",
+                        color: "#999",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Generating audio...
+                    </div>
+                  )}
                   {s.word_count && (
                     <div
                       style={{

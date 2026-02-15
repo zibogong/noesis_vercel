@@ -64,16 +64,20 @@ export async function updateSummaryStatus(
     summary?: string;
     error_message?: string;
     word_count?: number;
+    video_title?: string;
+    audio_url?: string;
   }
 ): Promise<void> {
-  const { status, summary, error_message, word_count } = fields;
+  const { status, summary, error_message, word_count, video_title, audio_url } = fields;
 
   await sql`
     UPDATE video_summaries SET
       status = COALESCE(${status ?? null}, status),
       summary = COALESCE(${summary ?? null}, summary),
       error_message = COALESCE(${error_message ?? null}, error_message),
-      word_count = COALESCE(${word_count ?? null}, word_count)
+      word_count = COALESCE(${word_count ?? null}, word_count),
+      video_title = COALESCE(${video_title ?? null}, video_title),
+      audio_url = COALESCE(${audio_url ?? null}, audio_url)
     WHERE id = ${id}
   `;
 }
