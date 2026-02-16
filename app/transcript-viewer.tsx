@@ -5,19 +5,6 @@ import { useRouter } from "next/navigation";
 import type { VideoSummaryRecord } from "@/lib/types";
 import { extractVideoId } from "@/lib/youtube";
 
-const LANGUAGES = [
-  { code: "en", label: "English" },
-  { code: "zh", label: "Chinese" },
-  { code: "es", label: "Spanish" },
-  { code: "ja", label: "Japanese" },
-  { code: "ko", label: "Korean" },
-  { code: "fr", label: "French" },
-  { code: "de", label: "German" },
-  { code: "pt", label: "Portuguese" },
-  { code: "ru", label: "Russian" },
-  { code: "ar", label: "Arabic" },
-];
-
 const LENGTHS = [
   { value: 100, label: "Short (~100)" },
   { value: 300, label: "Medium (~300)" },
@@ -41,7 +28,6 @@ const MAX_AUDIO_POLLS = 60; // 60 * 2s = 2 min timeout
 export default function TranscriptViewer() {
   const router = useRouter();
   const [url, setUrl] = useState("");
-  const [language, setLanguage] = useState("en");
   const [length, setLength] = useState(300);
   const [summary, setSummary] = useState("");
   const [wordCount, setWordCount] = useState(0);
@@ -126,7 +112,7 @@ export default function TranscriptViewer() {
       const res = await fetch("/api/summaries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), language, length }),
+        body: JSON.stringify({ url: url.trim(), length }),
       });
       const data = await res.json();
 
@@ -203,14 +189,6 @@ export default function TranscriptViewer() {
           </button>
         </div>
         <div className="tv-options">
-          <label>
-            Language
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} style={selectStyle}>
-              {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>{l.label}</option>
-              ))}
-            </select>
-          </label>
           <label>
             Length
             <select value={length} onChange={(e) => setLength(Number(e.target.value))} style={selectStyle}>

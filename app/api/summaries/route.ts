@@ -7,7 +7,7 @@ import {
   checkRateLimit,
   updateSummaryStatus,
 } from "@/lib/db";
-import { extractVideoId, fetchTranscript, transcriptToText, fetchVideoTitle } from "@/lib/youtube";
+import { extractVideoId, fetchTranscript, transcriptToText, fetchVideoTitle, listAvailableLanguages } from "@/lib/youtube";
 import { generateSummary, generateSpeech } from "@/lib/openai";
 import { uploadAudio } from "@/lib/storage";
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { url, language = "en", length = 300 } = body;
+  const { url, length = 300 } = body;
 
   if (!url) {
     return NextResponse.json({ detail: "URL is required" }, { status: 400 });
@@ -35,11 +35,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const record = await createOrUpdateSummary(email, videoId, language, length);
+  const record = await createOrUpdateSummary(email, videoId, "auto", length);
 
   const processInBackground = async () => {
     try {
-      console.log(`[summary:${record.id}] Starting processing for video ${videoId}, lang=${language}, length=${length}`);
+      console.log(`[summary:${record.id}] Starting processing for video ${videoId}, length=${length}`);
       await updateSummaryStatus(record.id, { status: "processing" });
 
       // Fetch video title (non-critical)
@@ -49,8 +49,22 @@ export async function POST(request: Request) {
         await updateSummaryStatus(record.id, { video_title: videoTitle });
       }
 
+      // Auto-detect language from available caption tracks
+      let resolvedLang = "en";
+      try {
+        const languages = await listAvailableLanguages(videoId);
+        if (languages.length > 0) {
+          const humanTrack = languages.find((l) => !l.is_generated);
+          resolvedLang = (humanTrack || languages[0]).language_code;
+        }
+        console.log(`[summary:${record.id}] Detected language: ${resolvedLang}`);
+      } catch (langErr) {
+        console.warn(`[summary:${record.id}] Language detection failed, defaulting to 'en':`, langErr);
+      }
+      await updateSummaryStatus(record.id, { language: resolvedLang });
+
       console.log(`[summary:${record.id}] Fetching transcript...`);
-      const transcript = await fetchTranscript(videoId, language);
+      const transcript = await fetchTranscript(videoId, resolvedLang);
       console.log(`[summary:${record.id}] Transcript fetched: ${transcript.length} segments`);
 
       const text = transcriptToText(transcript);
@@ -73,7 +87,7 @@ export async function POST(request: Request) {
         const audioBuffer = await generateSpeech(summary);
         console.log(`[summary:${record.id}] TTS audio generated: ${audioBuffer.length} bytes`);
 
-        const audioUrl = await uploadAudio(audioBuffer, videoId);
+        const audioUrl = await uploadAudio(audioBuffer, videoId, record.audio_url);
         console.log(`[summary:${record.id}] Audio uploaded: ${audioUrl}`);
 
         await updateSummaryStatus(record.id, { audio_url: audioUrl });

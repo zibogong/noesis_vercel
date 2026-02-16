@@ -20,6 +20,7 @@ export async function createOrUpdateSummary(
       summary = NULL,
       error_message = NULL,
       word_count = NULL,
+      audio_url = NULL,
       updated_at = now()
     RETURNING *
   `;
@@ -66,9 +67,10 @@ export async function updateSummaryStatus(
     word_count?: number;
     video_title?: string;
     audio_url?: string;
+    language?: string;
   }
 ): Promise<void> {
-  const { status, summary, error_message, word_count, video_title, audio_url } = fields;
+  const { status, summary, error_message, word_count, video_title, audio_url, language } = fields;
 
   await sql`
     UPDATE video_summaries SET
@@ -77,7 +79,8 @@ export async function updateSummaryStatus(
       error_message = COALESCE(${error_message ?? null}, error_message),
       word_count = COALESCE(${word_count ?? null}, word_count),
       video_title = COALESCE(${video_title ?? null}, video_title),
-      audio_url = COALESCE(${audio_url ?? null}, audio_url)
+      audio_url = COALESCE(${audio_url ?? null}, audio_url),
+      language = COALESCE(${language ?? null}, language)
     WHERE id = ${id}
   `;
 }
